@@ -5,7 +5,7 @@ const SEARCH_ENGINES = [
   { name: 'Bing', url: 'https://www.bing.com/indexnow' },
   { name: 'Yandex', url: 'https://yandex.com/indexnow' },
   { name: 'Naver', url: 'https://searchadvisor.naver.com/indexnow' },
-  { name: 'Seznam', url: 'https://seznam.cz/indexnow' },
+  { name: 'Seznam', url: 'https://search.seznam.cz/indexnow' },
   { name: 'Yep', url: 'https://indexnow.yep.com/indexnow' },
 ];
 
@@ -20,11 +20,12 @@ const STATUS_MESSAGES: Record<number, string> = {
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { host, key, keyLocation, urls } = body as {
+  const { host, key, keyLocation, urls, engines: engineFilter } = body as {
     host: string;
     key: string;
     keyLocation: string;
     urls: string[];
+    engines?: string[]; // optional — only submit to these engine names
   };
 
   if (!host || !key || !urls?.length) {
@@ -38,8 +39,12 @@ export async function POST(request: NextRequest) {
     urlList: urls,
   };
 
+  const targets = engineFilter?.length
+    ? SEARCH_ENGINES.filter((e) => engineFilter.includes(e.name))
+    : SEARCH_ENGINES;
+
   const results = await Promise.all(
-    SEARCH_ENGINES.map(async (engine) => {
+    targets.map(async (engine) => {
       try {
         const response = await fetch(engine.url, {
           method: 'POST',
@@ -49,7 +54,8 @@ export async function POST(request: NextRequest) {
         });
 
         const rawBody = await response.text().catch(() => '');
-        const message = STATUS_MESSAGES[response.status] ?? rawBody ?? `HTTP ${response.status}`;
+        const isHtml = rawBody.trimStart().startsWith('<');
+        const message = STATUS_MESSAGES[response.status] ?? (isHtml ? `HTTP ${response.status}` : rawBody) ?? `HTTP ${response.status}`;
 
         return {
           engine: engine.name,
@@ -57,7 +63,8 @@ export async function POST(request: NextRequest) {
           statusCode: response.status,
           statusText: response.statusText,
           message,
-          success: response.status === 200 || response.status === 202,
+          success: response.status === 200,
+          pending: response.status === 202,
         };
       } catch (error) {
         return {

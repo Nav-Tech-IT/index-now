@@ -33,20 +33,24 @@ export function useSavedSites() {
     setSites(readStorage());
   }, []);
 
-  const upsertSite = useCallback((site: Omit<SavedSite, 'id' | 'addedAt'> & { id?: string }) => {
+  const upsertSite = useCallback((
+    site: Omit<SavedSite, 'id' | 'addedAt' | 'verifiedAt'> & { markVerified?: boolean }
+  ) => {
     setSites((prev) => {
+      const now = Date.now();
       const existing = prev.find((s) => s.domain === site.domain);
       let next: SavedSite[];
       if (existing) {
         next = prev.map((s) =>
           s.domain === site.domain
-            ? { ...s, ...site, id: s.id, addedAt: s.addedAt }
+            ? { ...s, ...site, id: s.id, addedAt: s.addedAt, verifiedAt: site.markVerified ? now : s.verifiedAt }
             : s
         );
       } else {
         const newSite: SavedSite = {
           id: crypto.randomUUID(),
-          addedAt: Date.now(),
+          addedAt: now,
+          verifiedAt: site.markVerified ? now : undefined,
           ...site,
         };
         next = [newSite, ...prev];

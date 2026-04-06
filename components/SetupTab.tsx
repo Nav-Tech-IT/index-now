@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Globe, Monitor, Plus, X, Check, XCircle, Loader2 } from 'lucide-react';
 import { useSavedSites } from '@/hooks/useSavedSites';
 
 function generateKey(): string {
@@ -98,6 +99,14 @@ export default function SetupTab() {
     try {
       const result = await verifyDomain(entry.domain, verifyKey);
       updateEntry(entry.id, { status: result.accessible ? 'success' : 'failed', result });
+      if (result.accessible) {
+        upsertSite({
+          domain: entry.domain,
+          key: verifyKey,
+          keyFileUrl: `https://${entry.domain}/${verifyKey}.txt`,
+          markVerified: true,
+        });
+      }
     } catch {
       updateEntry(entry.id, { status: 'failed', result: { error: 'Failed to connect to verification endpoint' } });
     }
@@ -106,18 +115,24 @@ export default function SetupTab() {
   async function handleVerifyAll() {
     const toVerify = domains.filter((d) => d.domain && (d.status === 'idle' || d.status === 'failed'));
     if (!toVerify.length || !verifyKey) return;
-    // Mark all as verifying first
     setDomains((prev) =>
       prev.map((d) =>
         toVerify.some((t) => t.id === d.id) ? { ...d, status: 'verifying', result: undefined } : d
       )
     );
-    // Run in parallel
     await Promise.all(
       toVerify.map(async (entry) => {
         try {
           const result = await verifyDomain(entry.domain, verifyKey);
           updateEntry(entry.id, { status: result.accessible ? 'success' : 'failed', result });
+          if (result.accessible) {
+            upsertSite({
+              domain: entry.domain,
+              key: verifyKey,
+              keyFileUrl: `https://${entry.domain}/${verifyKey}.txt`,
+              markVerified: true,
+            });
+          }
         } catch {
           updateEntry(entry.id, {
             status: 'failed',
@@ -249,7 +264,7 @@ export default function SetupTab() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg p-4">
                 <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-2 flex items-center gap-2">
-                  <span>🌐</span> WordPress
+                  <Globe size={14} className="text-blue-500" /> WordPress
                 </h3>
                 <ol className="text-sm text-zinc-600 dark:text-zinc-400 space-y-1 list-decimal list-inside">
                   <li>Install <strong>File Manager</strong> plugin</li>
@@ -260,7 +275,7 @@ export default function SetupTab() {
               </div>
               <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg p-4">
                 <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-2 flex items-center gap-2">
-                  <span>🖥️</span> Any Website (FTP / cPanel)
+                  <Monitor size={14} className="text-blue-500" /> Any Website (FTP / cPanel)
                 </h3>
                 <ol className="text-sm text-zinc-600 dark:text-zinc-400 space-y-1 list-decimal list-inside">
                   <li>Download the key file above</li>
@@ -320,7 +335,7 @@ export default function SetupTab() {
             onClick={addDomain}
             className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-lg transition-colors"
           >
-            <span className="text-base leading-none">+</span> Add Website
+            <Plus size={14} /> Add Website
           </button>
           {pendingCount > 0 && (
             <button
@@ -337,13 +352,13 @@ export default function SetupTab() {
         {domains.some((d) => d.status === 'success' || d.status === 'failed') && (
           <div className="mt-4 flex items-center gap-4 text-sm">
             {domains.filter((d) => d.status === 'success').length > 0 && (
-              <span className="text-green-600 dark:text-green-400 font-medium">
-                ✓ {domains.filter((d) => d.status === 'success').length} verified
+              <span className="flex items-center gap-1 text-green-600 dark:text-green-400 font-medium">
+                <Check size={13} /> {domains.filter((d) => d.status === 'success').length} verified
               </span>
             )}
             {domains.filter((d) => d.status === 'failed').length > 0 && (
-              <span className="text-red-600 dark:text-red-400 font-medium">
-                ✗ {domains.filter((d) => d.status === 'failed').length} failed
+              <span className="flex items-center gap-1 text-red-600 dark:text-red-400 font-medium">
+                <XCircle size={13} /> {domains.filter((d) => d.status === 'failed').length} failed
               </span>
             )}
           </div>
@@ -367,9 +382,9 @@ interface DomainRowProps {
 function DomainRow({ entry, index, canRemove, verifyKey, onDomainChange, onVerify, onRemove }: DomainRowProps) {
   const statusIcon = {
     idle: null,
-    verifying: <span className="text-blue-500 text-xs animate-pulse">Checking…</span>,
-    success: <span className="text-green-600 dark:text-green-400 text-lg leading-none">✓</span>,
-    failed: <span className="text-red-500 text-lg leading-none">✗</span>,
+    verifying: <Loader2 size={15} className="text-blue-500 animate-spin" />,
+    success: <Check size={15} className="text-green-600 dark:text-green-400" />,
+    failed: <XCircle size={15} className="text-red-500" />,
   }[entry.status];
 
   const rowBorder = {
@@ -406,7 +421,7 @@ function DomainRow({ entry, index, canRemove, verifyKey, onDomainChange, onVerif
               className="p-1 text-zinc-400 hover:text-red-500 dark:hover:text-red-400 transition-colors rounded"
               title="Remove"
             >
-              ✕
+              <X size={13} />
             </button>
           )}
         </div>

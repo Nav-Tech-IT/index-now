@@ -1,18 +1,26 @@
 'use client';
 
 import { useState } from 'react';
+import { KeyRound, Send, History, Zap } from 'lucide-react';
 import SetupTab from './SetupTab';
 import SubmitTab from './SubmitTab';
+import HistoryTab from './HistoryTab';
+import { useSubmissionHistory } from '@/hooks/useSubmissionHistory';
 
 const TABS = [
-  { id: 'setup', label: 'Setup API Key', icon: '🔑' },
-  { id: 'submit', label: 'Bulk Submit URLs', icon: '🚀' },
+  { id: 'setup', label: 'Setup API Key', icon: KeyRound },
+  { id: 'submit', label: 'Bulk Submit URLs', icon: Send },
+  { id: 'history', label: 'History', icon: History },
 ] as const;
 
 type TabId = (typeof TABS)[number]['id'];
 
 export default function IndexNowApp() {
   const [activeTab, setActiveTab] = useState<TabId>('setup');
+  const { history } = useSubmissionHistory();
+  const pendingTotal = history.reduce(
+    (n, r) => n + r.results.filter((e) => e.pending).length, 0
+  );
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
@@ -20,8 +28,8 @@ export default function IndexNowApp() {
       <header className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-700">
         <div className="max-w-4xl mx-auto px-4 py-5">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold text-lg">
-              ⚡
+            <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white">
+              <Zap size={18} strokeWidth={2.5} />
             </div>
             <div>
               <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">IndexNow Bulk Submitter</h1>
@@ -56,8 +64,17 @@ export default function IndexNowApp() {
                     : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'
                 }`}
               >
-                <span>{tab.icon}</span>
+                <tab.icon size={15} />
                 {tab.label}
+                {tab.id === 'history' && history.length > 0 && (
+                  <span className={`ml-1 px-1.5 py-0.5 text-xs rounded-full font-semibold ${
+                    pendingTotal > 0
+                      ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400'
+                      : 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400'
+                  }`}>
+                    {pendingTotal > 0 ? `${pendingTotal} pending` : history.length}
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -68,6 +85,7 @@ export default function IndexNowApp() {
       <main className="max-w-4xl mx-auto px-4 py-8">
         {activeTab === 'setup' && <SetupTab />}
         {activeTab === 'submit' && <SubmitTab />}
+        {activeTab === 'history' && <HistoryTab />}
       </main>
 
       {/* Footer */}
